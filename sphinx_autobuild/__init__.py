@@ -22,6 +22,7 @@ except ImportError:
 from livereload import Server
 
 from watchdog.observers import Observer
+from watchdog.observers.polling import PollingObserver
 from watchdog.events import FileSystemEventHandler
 
 
@@ -57,7 +58,7 @@ class LivereloadWatchdogWatcher(object):
     """
     File system watch dog.
     """
-    def __init__(self):
+    def __init__(self, poll=False):
         super(LivereloadWatchdogWatcher, self).__init__()
         self._changed = False
         # TODO: Hack.
@@ -65,7 +66,17 @@ class LivereloadWatchdogWatcher(object):
         # instance to set the file which was
         # modified. Used for output purposes only.
         self._action_file = None
-        self._observer = Observer()
+
+        # When using watchdog with remote filesystems, like Docker mounted
+        # volumes, it is necessary to use a polling observer.
+        #
+        # See:
+        # https://github.com/gorakhargosh/watchdog/issues/283#issuecomment-61079649
+        if poll:
+            self._observer = PollingObserver()
+        else:
+            self._observer = Observer()
+
         self._observer.start()
 
         # Compatibility with livereload's builtin watcher
@@ -230,6 +241,11 @@ def get_parser():
                         help=('Specify additional directories to watch. May be'
                               ' used multiple times.'),
                         dest='additional_watched_dirs')
+    parser.add_argument('-o', '--poll', dest='poll', action='store_true',
+                        default=False,
+                        help=('Use a polling observer. Necessary when using '
+                              'remote filesystems like Docker mounted volumes.')
+                        )
 
     for opt, meta in SPHINX_BUILD_OPTIONS:
         if meta is None:
@@ -284,7 +300,7 @@ def main():
         portn = port_for.select_random()
 
     builder = SphinxBuilder(outdir, build_args, ignored, re_ignore)
-    server = Server(watcher=LivereloadWatchdogWatcher())
+    server = Server(watcher=LivereloadWatchdogWatcher(poll=args.poll))
 
     server.watch(srcdir, builder)
     for dirpath in args.additional_watched_dirs:
