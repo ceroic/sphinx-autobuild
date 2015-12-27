@@ -4,4 +4,5 @@ pathtools>=0.1.2
 PyYAML>=3.10
 tornado>=3.2
 port_for==0.3.1
-livereload>=2.3.0
+# livereload>=2.3.0
+git+https://github.com/lepture/python-livereload.git@master#egg=livereload
